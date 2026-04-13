@@ -4,9 +4,7 @@ plugins {
 
 android {
     namespace 'com.example.crashhaloapp'
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.example.crashhaloapp"
@@ -17,11 +15,15 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+
     buildFeatures {
         viewBinding true
     }
-    noCompress "tflite"
 
+    // Also add this to prevent your YOLO model from being compressed
+    aaptOptions {
+        noCompress "tflite"
+    }
 
     buildTypes {
         release {
