@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "838763424194",
+    "project_id": "crashhalo",
+    "storage_bucket": "crashhalo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838763424194:android:a63f5a1f8a8e9517e34e5b",
+        "android_client_info": {
+          "package_name": "com.example.crashhaloapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIIB45F7P_kye5KFA1HW4dWiOeL_1E5ks"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
