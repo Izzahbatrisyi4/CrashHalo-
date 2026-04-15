@@ -1,0 +1,7 @@
+minor_dent
+moderate_dent
+severe_dent
+scratch
+shattered_glass
+lamp_broken
+bumper_damage

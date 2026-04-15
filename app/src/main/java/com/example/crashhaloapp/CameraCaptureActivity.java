@@ -2,6 +2,8 @@ package com.example.crashhaloapp;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,6 +21,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.example.crashhaloapp.databinding.ActivityCameraCaptureBinding;
+import com.example.crashhaloapp.ml.YoloDetector;
+import com.example.crashhaloapp.models.Detection;
 import com.example.crashhaloapp.models.Incident;
 import com.example.crashhaloapp.repository.FirestoreRepository;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -27,6 +31,7 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -48,9 +53,11 @@ public class CameraCaptureActivity extends AppCompatActivity {
     };
 
     private List<String> photoUrls = new ArrayList<>();
+    private List<Detection> aiDetections = new ArrayList<>();
     private String incidentId;
     private FirebaseStorage storage;
     private FirestoreRepository firestoreRepository;
+    private YoloDetector detector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +69,12 @@ public class CameraCaptureActivity extends AppCompatActivity {
         firestoreRepository = new FirestoreRepository();
         incidentId = UUID.randomUUID().toString();
 
-        // Request camera permissions
+        try {
+            detector = new YoloDetector(this);
+        } catch (IOException e) {
+            Log.e("ML", "Failed to load model", e);
+        }
+
         if (allPermissionsGranted()) {
             startCamera();
         } else {
@@ -80,17 +92,12 @@ public class CameraCaptureActivity extends AppCompatActivity {
         cameraProviderFuture.addListener(() -> {
             try {
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
-
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(binding.viewFinder.getSurfaceProvider());
-
                 imageCapture = new ImageCapture.Builder().build();
-
                 CameraSelector cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA;
-
                 cameraProvider.unbindAll();
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
-
             } catch (ExecutionException | InterruptedException e) {
                 Log.e("CameraX", "Use case binding failed", e);
             }
@@ -106,6 +113,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
         imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this), new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
+                // If it's the last step, run AI detection
+                if (currentStep == 3) {
+                    runAiInference(photoFile);
+                }
                 uploadPhotoToFirebase(photoFile);
             }
 
@@ -116,6 +127,16 @@ public class CameraCaptureActivity extends AppCompatActivity {
         });
     }
 
+    private void runAiInference(File file) {
+        Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+        List<YoloDetector.Recognition> results = detector.detect(bitmap);
+        
+        for (YoloDetector.Recognition r : results) {
+            aiDetections.add(new Detection(r.label, r.confidence));
+            Log.d("ML", "Detected: " + r.label + " (" + r.confidence + ")");
+        }
+    }
+
     private void uploadPhotoToFirebase(File file) {
         String fileName = "incidents/" + incidentId + "/step_" + currentStep + ".jpg";
         StorageReference storageRef = storage.getReference().child(fileName);
@@ -123,8 +144,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
         storageRef.putFile(Uri.fromFile(file))
                 .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                     photoUrls.add(uri.toString());
-                    Toast.makeText(CameraCaptureActivity.this, "Uploaded Step " + currentStep, Toast.LENGTH_SHORT).show();
-                    
                     if (currentStep < steps.length) {
                         currentStep++;
                         updateGuide();
@@ -142,13 +161,13 @@ public class CameraCaptureActivity extends AppCompatActivity {
         Incident incident = new Incident();
         incident.setIncident_id(incidentId);
         incident.setUid(uid);
-        incident.setStatus("Pending Assessment");
-        // For simplicity, we'll store photo URLs in a way that matches your requirement
-        // You might want to update your Incident model to have a List<String> photoUrls
+        incident.setImages(photoUrls);
+        incident.setDetections(aiDetections);
+        incident.setStatus("Assessment Complete");
         
         firestoreRepository.logIncident(incident)
                 .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Incident Report Created!", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "AI Assessment Complete!", Toast.LENGTH_LONG).show();
                     finish();
                 })
                 .addOnFailureListener(e -> Log.e("Firestore", "Failed to save incident", e));
