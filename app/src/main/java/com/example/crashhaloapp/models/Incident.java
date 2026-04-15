@@ -15,10 +15,11 @@ public class Incident {
     private String status;
     private String pdf_url;
     private List<Detection> detections;
+    private List<String> images; // List of URLs for the insurance timeline
 
     public Incident() {}
 
-    public Incident(String incident_id, String vid, String uid, GeoPoint location, String status, String pdf_url, List<Detection> detections) {
+    public Incident(String incident_id, String vid, String uid, GeoPoint location, String status, String pdf_url, List<Detection> detections, List<String> images) {
         this.incident_id = incident_id;
         this.vid = vid;
         this.uid = uid;
@@ -26,6 +27,7 @@ public class Incident {
         this.status = status;
         this.pdf_url = pdf_url;
         this.detections = detections;
+        this.images = images;
     }
 
     // Getters and Setters
@@ -45,4 +47,6 @@ public class Incident {
     public void setPdf_url(String pdf_url) { this.pdf_url = pdf_url; }
     public List<Detection> getDetections() { return detections; }
     public void setDetections(List<Detection> detections) { this.detections = detections; }
+    public List<String> getImages() { return images; }
+    public void setImages(List<String> images) { this.images = images; }
 }
