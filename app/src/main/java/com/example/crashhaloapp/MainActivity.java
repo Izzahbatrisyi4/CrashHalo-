@@ -1,7 +1,7 @@
 package com.example.crashhaloapp;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,12 +10,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.firebase.firestore.FirebaseFirestore;
-import java.util.HashMap;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "MainActivity";
     private FirebaseFirestore db;
 
     @Override
@@ -24,7 +21,6 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
         
-        // Initialize Firestore
         db = FirebaseFirestore.getInstance();
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -33,7 +29,10 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-
+        // Set up the Scan Button to open CameraCaptureActivity
+        findViewById(R.id.btn_scan).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, CameraCaptureActivity.class);
+            startActivity(intent);
+        });
     }
-
 }

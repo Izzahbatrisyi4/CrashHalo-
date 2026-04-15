@@ -205,6 +205,7 @@
                 app:tint="@color/grey_300" />
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_scan"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
