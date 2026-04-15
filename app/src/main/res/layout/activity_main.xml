@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
-    tools:context=".MainActivity">
+    tools:context="com.example.crashhaloapp.MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
@@ -40,7 +40,7 @@
                     android:layout_height="40dp"
                     android:background="#33FFFFFF"
                     android:padding="8dp"
-                    android:src="@drawable/ic_user"
+                    android:src="@drawable/ic_launcher_background"
                     app:shapeAppearanceOverlay="@style/CircleImage"
                     app:strokeColor="#4DFFFFFF"
                     app:strokeWidth="1dp" />
@@ -109,7 +109,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:padding="20dp"
-                            android:src="@drawable/ic_car"
+                            android:src="@drawable/ic_launcher_foreground"
                             app:tint="@color/grey_300" />
                     </com.google.android.material.card.MaterialCardView>
 
@@ -194,14 +194,14 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
-                android:src="@drawable/ic_home"
+                android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/brand_blue" />
 
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
-                android:src="@drawable/ic_map"
+                android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/grey_300" />
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -209,7 +209,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:backgroundTint="@color/brand_blue"
-                android:src="@drawable/ic_plus"
+                android:src="@android:drawable/ic_input_add"
                 app:borderWidth="8dp"
                 app:elevation="8dp"
                 app:fabSize="normal"
@@ -219,14 +219,14 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
-                android:src="@drawable/ic_history"
+                android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/grey_300" />
 
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
-                android:src="@drawable/ic_settings"
+                android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/grey_300" />
 
         </LinearLayout>
