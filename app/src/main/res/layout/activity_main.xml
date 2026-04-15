@@ -39,6 +39,7 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:background="#33FFFFFF"
+                    android:contentDescription="User profile"
                     android:padding="8dp"
                     android:src="@drawable/ic_launcher_background"
                     app:shapeAppearanceOverlay="@style/CircleImage"
@@ -108,6 +109,7 @@
                         <ImageView
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
+                            android:contentDescription="Vehicle image"
                             android:padding="20dp"
                             android:src="@drawable/ic_launcher_foreground"
                             app:tint="@color/grey_300" />
@@ -194,6 +196,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
+                android:contentDescription="Home"
                 android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/brand_blue" />
 
@@ -201,6 +204,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
+                android:contentDescription="Map"
                 android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/grey_300" />
 
@@ -210,6 +214,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:backgroundTint="@color/brand_blue"
+                android:contentDescription="Start AI Assessment"
                 android:src="@android:drawable/ic_input_add"
                 app:borderWidth="8dp"
                 app:elevation="8dp"
@@ -220,6 +225,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
+                android:contentDescription="History"
                 android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/grey_300" />
 
@@ -227,6 +233,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_weight="1"
+                android:contentDescription="Settings"
                 android:src="@drawable/ic_launcher_foreground"
                 app:tint="@color/grey_300" />
 
