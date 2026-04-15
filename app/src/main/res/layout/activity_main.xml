@@ -81,95 +81,12 @@
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
-            <!-- Sample Report Card -->
-            <com.google.android.material.card.MaterialCardView
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_incidents"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="32dp"
-                app:cardElevation="2dp"
-                app:strokeColor="@color/grey_100"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="16dp">
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="80dp"
-                        android:layout_height="80dp"
-                        app:cardBackgroundColor="@color/bg_light"
-                        app:cardCornerRadius="16dp"
-                        app:cardElevation="0dp">
-
-                        <ImageView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:contentDescription="Vehicle image"
-                            android:padding="20dp"
-                            android:src="@drawable/ic_launcher_foreground"
-                            app:tint="@color/grey_300" />
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-black"
-                            android:text="REPORT #8821"
-                            android:textColor="@color/brand_blue"
-                            android:textSize="10sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:text="Proton Saga"
-                            android:textColor="@color/text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="12 April 2026 • Kedah"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:cardBackgroundColor="#FFF0F0"
-                        app:cardCornerRadius="16dp"
-                        app:cardElevation="0dp"
-                        app:strokeColor="#FFE0E0"
-                        app:strokeWidth="1dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="4dp"
-                            android:text="85% DAMAGE"
-                            android:textColor="#FF5252"
-                            android:textSize="10sp"
-                            android:textStyle="bold" />
-                    </com.google.android.material.card.MaterialCardView>
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                tools:listitem="@layout/item_incident" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
