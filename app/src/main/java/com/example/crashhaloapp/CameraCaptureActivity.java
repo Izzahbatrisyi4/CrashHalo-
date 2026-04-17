@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -25,8 +26,11 @@ import com.example.crashhaloapp.ml.YoloDetector;
 import com.example.crashhaloapp.models.Detection;
 import com.example.crashhaloapp.models.Incident;
 import com.example.crashhaloapp.repository.FirestoreRepository;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
@@ -44,6 +48,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private ActivityCameraCaptureBinding binding;
     private ImageCapture imageCapture;
     private ExecutorService cameraExecutor;
+    private FusedLocationProviderClient fusedLocationClient;
 
     private int currentStep = 1;
     private final String[] steps = {
@@ -55,6 +60,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private List<String> photoUrls = new ArrayList<>();
     private List<Detection> aiDetections = new ArrayList<>();
     private String incidentId;
+    private GeoPoint crashLocation;
     private FirebaseStorage storage;
     private FirestoreRepository firestoreRepository;
     private YoloDetector detector;
@@ -67,6 +73,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         storage = FirebaseStorage.getInstance();
         firestoreRepository = new FirestoreRepository();
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         incidentId = UUID.randomUUID().toString();
 
         try {
@@ -75,10 +82,15 @@ public class CameraCaptureActivity extends AppCompatActivity {
             Log.e("ML", "Failed to load model", e);
         }
 
+        // Request camera and location permissions
         if (allPermissionsGranted()) {
             startCamera();
+            fetchCurrentLocation();
         } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, 10);
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            }, 10);
         }
 
         binding.captureButton.setOnClickListener(v -> takePhoto());
@@ -86,9 +98,18 @@ public class CameraCaptureActivity extends AppCompatActivity {
         updateGuide();
     }
 
+    private void fetchCurrentLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+                if (location != null) {
+                    crashLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
+                }
+            });
+        }
+    }
+
     private void startCamera() {
         ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
-
         cameraProviderFuture.addListener(() -> {
             try {
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
@@ -113,7 +134,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
         imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this), new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                // If it's the last step, run AI detection
                 if (currentStep == 3) {
                     runAiInference(photoFile);
                 }
@@ -130,10 +150,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private void runAiInference(File file) {
         Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
         List<YoloDetector.Recognition> results = detector.detect(bitmap);
-        
         for (YoloDetector.Recognition r : results) {
             aiDetections.add(new Detection(r.label, r.confidence));
-            Log.d("ML", "Detected: " + r.label + " (" + r.confidence + ")");
         }
     }
 
@@ -163,6 +181,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
         incident.setUid(uid);
         incident.setImages(photoUrls);
         incident.setDetections(aiDetections);
+        incident.setLocation(crashLocation); // Save actual crash location
         incident.setStatus("Assessment Complete");
         
         firestoreRepository.logIncident(incident)
@@ -178,7 +197,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
     }
 
     private boolean allPermissionsGranted() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+               ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     @Override

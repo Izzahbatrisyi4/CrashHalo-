@@ -29,6 +29,7 @@ public class WorkshopMapActivity extends AppCompatActivity {
     private ActivityWorkshopMapBinding binding;
     private FusedLocationProviderClient fusedLocationClient;
     private GeoPoint userLocation;
+    private GeoPoint crashLocation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +42,13 @@ public class WorkshopMapActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        // Check if a crash location was passed
+        double lat = getIntent().getDoubleExtra("crash_lat", 0.0);
+        double lng = getIntent().getDoubleExtra("crash_lng", 0.0);
+        if (lat != 0.0 && lng != 0.0) {
+            crashLocation = new GeoPoint(lat, lng);
+        }
 
         setupMap();
         checkPermissionsAndGetLocation();
@@ -66,18 +74,37 @@ public class WorkshopMapActivity extends AppCompatActivity {
             fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
                 if (location != null) {
                     userLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
-                    binding.map.getController().animateTo(userLocation);
+                    
+                    // Center on crash location if available, otherwise user location
+                    if (crashLocation != null) {
+                        binding.map.getController().animateTo(crashLocation);
+                        addCrashMarker();
+                    } else {
+                        binding.map.getController().animateTo(userLocation);
+                    }
+                    
                     addWorkshopMarkers();
                 }
             });
         }
     }
 
+    private void addCrashMarker() {
+        Marker marker = new Marker(binding.map);
+        marker.setPosition(crashLocation);
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+        marker.setTitle("CRASH LOCATION");
+        // Optional: marker.setIcon(getResources().getDrawable(R.drawable.ic_crash_marker));
+        binding.map.getOverlays().add(marker);
+    }
+
     private void addWorkshopMarkers() {
-        // Dummy Workshops near user
-        addMarker(new GeoPoint(userLocation.getLatitude() + 0.005, userLocation.getLongitude() + 0.005), "Top Gear Auto Clinic");
-        addMarker(new GeoPoint(userLocation.getLatitude() - 0.004, userLocation.getLongitude() - 0.003), "Safety First Repair Shop");
-        addMarker(new GeoPoint(userLocation.getLatitude() + 0.002, userLocation.getLongitude() - 0.006), "Expert Body Works");
+        // Use userLocation if crashLocation is null, otherwise use crashLocation for "nearby" logic
+        GeoPoint center = (crashLocation != null) ? crashLocation : userLocation;
+
+        addMarker(new GeoPoint(center.getLatitude() + 0.005, center.getLongitude() + 0.005), "Top Gear Auto Clinic");
+        addMarker(new GeoPoint(center.getLatitude() - 0.004, center.getLongitude() - 0.003), "Safety First Repair Shop");
+        addMarker(new GeoPoint(center.getLatitude() + 0.002, center.getLongitude() - 0.006), "Expert Body Works");
     }
 
     private void addMarker(GeoPoint point, String title) {
@@ -98,13 +125,13 @@ public class WorkshopMapActivity extends AppCompatActivity {
         binding.workshopDetailsCard.setVisibility(View.VISIBLE);
         binding.txtWorkshopName.setText(marker.getTitle());
         
-        // Calculate Distance
+        // Calculate Distance from user's current location to workshop
         float[] results = new float[1];
         Location.distanceBetween(userLocation.getLatitude(), userLocation.getLongitude(), 
                 marker.getPosition().getLatitude(), marker.getPosition().getLongitude(), results);
         
         float distanceKm = results[0] / 1000;
-        int etaMinutes = (int) (distanceKm * 4); // Estimated 4 mins per km in city traffic
+        int etaMinutes = (int) (distanceKm * 4); 
 
         binding.txtWorkshopEta.setText(String.format(Locale.getDefault(), "Distance: %.1f km | ETA: %d mins", distanceKm, etaMinutes));
 
@@ -116,7 +143,6 @@ public class WorkshopMapActivity extends AppCompatActivity {
             if (intent.resolveActivity(getPackageManager()) != null) {
                 startActivity(intent);
             } else {
-                // Fallback to browser/other map apps
                 String geoUri = "geo:" + marker.getPosition().getLatitude() + "," + marker.getPosition().getLongitude();
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(geoUri)));
             }
