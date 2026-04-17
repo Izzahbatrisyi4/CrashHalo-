@@ -30,12 +30,13 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="sans-serif-black"
-                    android:text="🛡️ CRASHHALO"
+                    android:text="🛡️ CRASHALO"
                     android:textColor="@color/white"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
                 <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/img_profile_top"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:background="#33FFFFFF"
@@ -81,80 +82,173 @@
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_incidents"
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                tools:listitem="@layout/item_incident" />
+                android:layout_marginTop="24dp">
+
+                <!-- Empty State -->
+                <LinearLayout
+                    android:id="@+id/empty_state"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingVertical="48dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:src="@drawable/ic_history"
+                        app:tint="@color/grey_100" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="No assessments yet."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Tap + to start."
+                        android:textColor="@color/grey_300"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_incidents"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    tools:listitem="@layout/item_incident" />
+
+            </FrameLayout>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Bottom Navigation Mockup -->
+    <!-- Bottom Navigation -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
-        android:layout_height="72dp"
+        android:layout_height="88dp"
         android:layout_gravity="bottom"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="24dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"
         app:cardBackgroundColor="@color/surface"
-        app:cardCornerRadius="36dp"
-        app:cardElevation="12dp">
+        app:cardCornerRadius="44dp"
+        app:cardElevation="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingHorizontal="24dp">
+            android:paddingHorizontal="8dp">
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+            <!-- Home (Active) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:contentDescription="Home"
-                android:src="@drawable/ic_home"
-                app:tint="@color/brand_blue" />
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:contentDescription="Home"
+                    android:src="@drawable/ic_home"
+                    app:tint="@color/brand_blue" />
+            </LinearLayout>
 
-            <ImageView
+            <!-- Map -->
+            <LinearLayout
                 android:id="@+id/btn_map"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:contentDescription="Map"
-                android:src="@drawable/ic_map"
-                app:tint="@color/grey_300" />
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="Map"
+                    android:src="@drawable/ic_map"
+                    app:tint="@color/grey_300" />
+            </LinearLayout>
 
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/btn_scan"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="@color/brand_blue"
-                android:contentDescription="Start AI Assessment"
-                android:src="@android:drawable/ic_input_add"
-                app:borderWidth="8dp"
-                app:elevation="8dp"
-                app:fabSize="normal"
-                app:tint="@color/white" />
+            <!-- Scan FAB with Label -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1.2"
+                android:gravity="center"
+                android:orientation="vertical">
+                
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/btn_scan"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:backgroundTint="@color/brand_blue"
+                    android:contentDescription="Start AI Assessment"
+                    android:src="@android:drawable/ic_input_add"
+                    app:elevation="4dp"
+                    app:fabSize="normal"
+                    app:tint="@color/white"
+                    app:borderWidth="0dp"/>
+                
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="SCAN"
+                    android:textColor="@color/brand_blue"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+            <!-- History -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:contentDescription="History"
-                android:src="@drawable/ic_history"
-                app:tint="@color/grey_300" />
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="History"
+                    android:src="@drawable/ic_history"
+                    app:tint="@color/grey_300" />
+            </LinearLayout>
 
-            <ImageView
+            <!-- Settings -->
+            <LinearLayout
                 android:id="@+id/btn_settings"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:contentDescription="Settings"
-                android:src="@drawable/ic_settings"
-                app:tint="@color/grey_300" />
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="Settings"
+                    android:src="@drawable/ic_settings"
+                    app:tint="@color/grey_300" />
+            </LinearLayout>
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
