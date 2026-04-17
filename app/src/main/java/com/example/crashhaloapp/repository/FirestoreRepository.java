@@ -20,9 +20,13 @@ public class FirestoreRepository {
         return usersRef.document(user.getUid()).set(user);
     }
 
+    public Task<Void> updateUserName(String uid, String newName) {
+        return usersRef.document(uid).update("full_name", newName);
+    }
+
     public Task<User> getUser(String uid) {
         return usersRef.document(uid).get().continueWith(task -> {
-            if (task.isSuccessful()) {
+            if (task.isSuccessful() && task.getResult() != null) {
                 return task.getResult().toObject(User.class);
             }
             return null;
@@ -31,7 +35,6 @@ public class FirestoreRepository {
 
     // --- VEHICLE OPERATIONS ---
     public Task<Void> saveVehicle(Vehicle vehicle) {
-        // If vid is not set, let Firestore generate one, or use a specific ID
         String vid = vehicle.getVid() != null ? vehicle.getVid() : vehiclesRef.document().getId();
         vehicle.setVid(vid);
         return vehiclesRef.document(vid).set(vehicle);
