@@ -45,9 +45,8 @@ dependencies {
     implementation libs.firebase.firestore
     implementation libs.firebase.storage
     
-    implementation libs.play.services.maps
     implementation libs.play.services.location
-    implementation libs.places
+    implementation libs.osmdroid
 
     implementation libs.androidx.camera.core
     implementation libs.androidx.camera.camera2

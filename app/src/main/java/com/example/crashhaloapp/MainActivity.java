@@ -34,5 +34,11 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(MainActivity.this, CameraCaptureActivity.class);
             startActivity(intent);
         });
+
+        // Set up the Map Button to open WorkshopMapActivity
+        findViewById(R.id.btn_map).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, WorkshopMapActivity.class);
+            startActivity(intent);
+        });
     }
 }

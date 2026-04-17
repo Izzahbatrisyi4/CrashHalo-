@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -14,6 +17,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CrashHaloApp">
         
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="YOUR_API_KEY_HERE" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -27,6 +34,11 @@
             android:name=".CameraCaptureActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".WorkshopMapActivity"
+            android:exported="false"
+            android:label="Nearby Workshops" />
 
     </application>
 
