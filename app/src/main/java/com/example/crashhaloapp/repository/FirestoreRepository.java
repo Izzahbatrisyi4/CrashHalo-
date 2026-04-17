@@ -24,6 +24,10 @@ public class FirestoreRepository {
         return usersRef.document(uid).update("full_name", newName);
     }
 
+    public Task<Void> updateUserProfileImage(String uid, String imageUrl) {
+        return usersRef.document(uid).update("profile_image_url", imageUrl);
+    }
+
     public Task<User> getUser(String uid) {
         return usersRef.document(uid).get().continueWith(task -> {
             if (task.isSuccessful() && task.getResult() != null) {

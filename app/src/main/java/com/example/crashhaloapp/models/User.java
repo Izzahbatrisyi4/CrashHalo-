@@ -8,6 +8,7 @@ public class User {
     private String full_name;
     private String email;
     private String phone;
+    private String profile_image_url;
     @ServerTimestamp
     private Timestamp created_at;
 
@@ -29,6 +30,8 @@ public class User {
     public void setEmail(String email) { this.email = email; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getProfile_image_url() { return profile_image_url; }
+    public void setProfile_image_url(String profile_image_url) { this.profile_image_url = profile_image_url; }
     public Timestamp getCreated_at() { return created_at; }
     public void setCreated_at(Timestamp created_at) { this.created_at = created_at; }
 }
