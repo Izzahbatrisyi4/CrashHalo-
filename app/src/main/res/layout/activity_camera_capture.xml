@@ -47,7 +47,7 @@
         android:layout_marginBottom="48dp"
         android:src="@android:drawable/ic_menu_camera"
         app:backgroundTint="@color/white"
-        app:fabSize="large"
+        app:fabSize="normal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
