@@ -64,6 +64,9 @@ dependencies {
     implementation libs.tensorflow.lite.support
     implementation libs.tensorflow.lite.metadata
 
+    implementation libs.glide
+    annotationProcessor libs.glide.compiler
+
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity
