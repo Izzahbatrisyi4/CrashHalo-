@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -45,6 +44,7 @@ import java.util.concurrent.Executors;
 
 public class CameraCaptureActivity extends AppCompatActivity {
 
+    private static final String TAG = "CameraCaptureActivity";
     private ActivityCameraCaptureBinding binding;
     private ImageCapture imageCapture;
     private ExecutorService cameraExecutor;
@@ -79,8 +79,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
         try {
             detector = new YoloDetector(this);
         } catch (IOException e) {
-            Log.e("ML", "Failed to load model", e);
+            Log.e(TAG, "Failed to load model", e);
         }
+
+        cameraExecutor = Executors.newSingleThreadExecutor();
 
         // Request camera and location permissions
         if (allPermissionsGranted()) {
@@ -94,7 +96,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
         }
 
         binding.captureButton.setOnClickListener(v -> takePhoto());
-        cameraExecutor = Executors.newSingleThreadExecutor();
         updateGuide();
     }
 
@@ -103,6 +104,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
             fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
                 if (location != null) {
                     crashLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
+                    Log.d(TAG, "Location fetched: " + location.getLatitude() + ", " + location.getLongitude());
                 }
             });
         }
@@ -115,43 +117,71 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(binding.viewFinder.getSurfaceProvider());
-                imageCapture = new ImageCapture.Builder().build();
+
+                imageCapture = new ImageCapture.Builder()
+                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                        .build();
+
                 CameraSelector cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA;
                 cameraProvider.unbindAll();
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
+                Log.d(TAG, "Camera started and bound to lifecycle");
+
             } catch (ExecutionException | InterruptedException e) {
-                Log.e("CameraX", "Use case binding failed", e);
+                Log.e(TAG, "Use case binding failed", e);
             }
         }, ContextCompat.getMainExecutor(this));
     }
 
     private void takePhoto() {
-        if (imageCapture == null) return;
+        if (imageCapture == null) {
+            Log.e(TAG, "ImageCapture is null, camera might not be ready");
+            Toast.makeText(this, "Camera not ready", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        File photoFile = new File(getExternalFilesDir(null), "incident_" + incidentId + "_step_" + currentStep + ".jpg");
+        File outputDir = getExternalFilesDir(null);
+        if (outputDir == null) {
+            Log.e(TAG, "External files directory is null");
+            return;
+        }
+        
+        File photoFile = new File(outputDir, "incident_" + incidentId + "_step_" + currentStep + ".jpg");
         ImageCapture.OutputFileOptions outputOptions = new ImageCapture.OutputFileOptions.Builder(photoFile).build();
 
+        Log.d(TAG, "Taking photo for step " + currentStep);
         imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this), new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
+                Log.d(TAG, "Photo saved successfully: " + photoFile.getAbsolutePath());
+                Toast.makeText(CameraCaptureActivity.this, "Step " + currentStep + " captured", Toast.LENGTH_SHORT).show();
+                
                 if (currentStep == 3) {
-                    runAiInference(photoFile);
+                    cameraExecutor.execute(() -> runAiInference(photoFile));
                 }
                 uploadPhotoToFirebase(photoFile);
             }
 
             @Override
             public void onError(@NonNull ImageCaptureException exception) {
-                Log.e("CameraX", "Photo capture failed: " + exception.getMessage());
+                Log.e(TAG, "Photo capture failed: " + exception.getMessage(), exception);
+                Toast.makeText(CameraCaptureActivity.this, "Capture failed: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void runAiInference(File file) {
-        Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
-        List<YoloDetector.Recognition> results = detector.detect(bitmap);
-        for (YoloDetector.Recognition r : results) {
-            aiDetections.add(new Detection(r.label, r.confidence));
+        try {
+            Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+            if (bitmap != null) {
+                List<YoloDetector.Recognition> results = detector.detect(bitmap);
+                for (YoloDetector.Recognition r : results) {
+                    aiDetections.add(new Detection(r.label, r.confidence));
+                    Log.d(TAG, "AI Detected: " + r.label + " with confidence " + r.confidence);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "AI Inference failed", e);
         }
     }
 
@@ -159,9 +189,11 @@ public class CameraCaptureActivity extends AppCompatActivity {
         String fileName = "incidents/" + incidentId + "/step_" + currentStep + ".jpg";
         StorageReference storageRef = storage.getReference().child(fileName);
 
+        Log.d(TAG, "Uploading photo to Firebase: " + fileName);
         storageRef.putFile(Uri.fromFile(file))
                 .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                     photoUrls.add(uri.toString());
+                    Log.d(TAG, "Upload successful, URL: " + uri.toString());
                     if (currentStep < steps.length) {
                         currentStep++;
                         updateGuide();
@@ -169,7 +201,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
                         saveIncidentToFirestore();
                     }
                 }))
-                .addOnFailureListener(e -> Log.e("FirebaseStorage", "Upload failed", e));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Firebase Upload failed", e);
+                    Toast.makeText(this, "Upload failed", Toast.LENGTH_SHORT).show();
+                });
     }
 
     private void saveIncidentToFirestore() {
@@ -181,15 +216,17 @@ public class CameraCaptureActivity extends AppCompatActivity {
         incident.setUid(uid);
         incident.setImages(photoUrls);
         incident.setDetections(aiDetections);
-        incident.setLocation(crashLocation); // Save actual crash location
+        incident.setLocation(crashLocation);
         incident.setStatus("Assessment Complete");
         
+        Log.d(TAG, "Saving incident to Firestore");
         firestoreRepository.logIncident(incident)
                 .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Incident saved successfully");
                     Toast.makeText(this, "AI Assessment Complete!", Toast.LENGTH_LONG).show();
                     finish();
                 })
-                .addOnFailureListener(e -> Log.e("Firestore", "Failed to save incident", e));
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to save incident", e));
     }
 
     private void updateGuide() {
@@ -197,8 +234,24 @@ public class CameraCaptureActivity extends AppCompatActivity {
     }
 
     private boolean allPermissionsGranted() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
-               ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean cameraGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        boolean locationGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        Log.d(TAG, "Permissions - Camera: " + cameraGranted + ", Location: " + locationGranted);
+        return cameraGranted && locationGranted;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 10) {
+            if (allPermissionsGranted()) {
+                startCamera();
+                fetchCurrentLocation();
+            } else {
+                Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
     }
 
     @Override
