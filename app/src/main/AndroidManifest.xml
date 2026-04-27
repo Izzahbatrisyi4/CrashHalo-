@@ -44,6 +44,11 @@
             android:exported="false"
             android:label="Settings" />
 
+        <activity
+            android:name=".ProfileManagementActivity"
+            android:exported="false"
+            android:label="Profile Management" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.example.crashhaloapp.fileprovider"

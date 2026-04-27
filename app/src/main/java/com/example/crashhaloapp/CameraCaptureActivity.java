@@ -9,6 +9,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
@@ -34,7 +36,9 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -64,6 +68,9 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private FirebaseStorage storage;
     private FirestoreRepository firestoreRepository;
     private YoloDetector detector;
+    private boolean isCameraReady = false;
+
+    private ActivityResultLauncher<String> galleryLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,12 +86,17 @@ public class CameraCaptureActivity extends AppCompatActivity {
         try {
             detector = new YoloDetector(this);
         } catch (IOException e) {
-            Log.e(TAG, "Failed to load model", e);
+            Log.e(TAG, "Failed to load AI model", e);
         }
 
         cameraExecutor = Executors.newSingleThreadExecutor();
 
-        // Request camera and location permissions
+        galleryLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+            if (uri != null) {
+                handleGalleryImage(uri);
+            }
+        });
+
         if (allPermissionsGranted()) {
             startCamera();
             fetchCurrentLocation();
@@ -95,8 +107,45 @@ public class CameraCaptureActivity extends AppCompatActivity {
             }, 10);
         }
 
-        binding.captureButton.setOnClickListener(v -> takePhoto());
+        binding.captureButton.setOnClickListener(v -> {
+            if (isCameraReady) {
+                takePhoto();
+            } else {
+                Toast.makeText(this, "Initializing camera, please wait...", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        binding.galleryButton.setOnClickListener(v -> galleryLauncher.launch("image/*"));
+        
         updateGuide();
+    }
+
+    private void handleGalleryImage(Uri uri) {
+        File outputDir = getExternalFilesDir(null);
+        if (outputDir == null) return;
+        
+        File photoFile = new File(outputDir, "incident_" + incidentId + "_step_" + currentStep + ".jpg");
+        
+        try (InputStream inputStream = getContentResolver().openInputStream(uri);
+             FileOutputStream outputStream = new FileOutputStream(photoFile)) {
+            
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buf)) > 0) {
+                outputStream.write(buf, 0, len);
+            }
+            
+            Toast.makeText(this, "Step " + currentStep + " Selected from Gallery", Toast.LENGTH_SHORT).show();
+            
+            if (currentStep == 3) {
+                cameraExecutor.execute(() -> runAiInference(photoFile));
+            }
+            uploadPhotoToFirebase(photoFile);
+            
+        } catch (IOException e) {
+            Log.e(TAG, "Error saving gallery image", e);
+            Toast.makeText(this, "Failed to load image from gallery", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void fetchCurrentLocation() {
@@ -104,7 +153,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
             fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
                 if (location != null) {
                     crashLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
-                    Log.d(TAG, "Location fetched: " + location.getLatitude() + ", " + location.getLongitude());
                 }
             });
         }
@@ -119,42 +167,36 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 preview.setSurfaceProvider(binding.viewFinder.getSurfaceProvider());
 
                 imageCapture = new ImageCapture.Builder()
-                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                         .build();
 
                 CameraSelector cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA;
                 cameraProvider.unbindAll();
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
-                Log.d(TAG, "Camera started and bound to lifecycle");
+                
+                isCameraReady = true;
+                Log.d(TAG, "Camera is ready and bound.");
 
             } catch (ExecutionException | InterruptedException e) {
-                Log.e(TAG, "Use case binding failed", e);
+                Log.e(TAG, "CameraX Initialization failed", e);
+                Toast.makeText(this, "Camera initialization failed", Toast.LENGTH_SHORT).show();
             }
         }, ContextCompat.getMainExecutor(this));
     }
 
     private void takePhoto() {
-        if (imageCapture == null) {
-            Log.e(TAG, "ImageCapture is null, camera might not be ready");
-            Toast.makeText(this, "Camera not ready", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (imageCapture == null) return;
 
         File outputDir = getExternalFilesDir(null);
-        if (outputDir == null) {
-            Log.e(TAG, "External files directory is null");
-            return;
-        }
+        if (outputDir == null) return;
         
         File photoFile = new File(outputDir, "incident_" + incidentId + "_step_" + currentStep + ".jpg");
         ImageCapture.OutputFileOptions outputOptions = new ImageCapture.OutputFileOptions.Builder(photoFile).build();
 
-        Log.d(TAG, "Taking photo for step " + currentStep);
         imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this), new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                Log.d(TAG, "Photo saved successfully: " + photoFile.getAbsolutePath());
-                Toast.makeText(CameraCaptureActivity.this, "Step " + currentStep + " captured", Toast.LENGTH_SHORT).show();
+                Toast.makeText(CameraCaptureActivity.this, "Step " + currentStep + " Captured", Toast.LENGTH_SHORT).show();
                 
                 if (currentStep == 3) {
                     cameraExecutor.execute(() -> runAiInference(photoFile));
@@ -164,8 +206,15 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
             @Override
             public void onError(@NonNull ImageCaptureException exception) {
-                Log.e(TAG, "Photo capture failed: " + exception.getMessage(), exception);
-                Toast.makeText(CameraCaptureActivity.this, "Capture failed: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
+                String error = "Capture Failed: ";
+                switch (exception.getImageCaptureError()) {
+                    case ImageCapture.ERROR_CAMERA_CLOSED: error += "Camera closed"; break;
+                    case ImageCapture.ERROR_FILE_IO: error += "Storage error"; break;
+                    case ImageCapture.ERROR_INVALID_CAMERA_CONTROLS: error += "Invalid controls"; break;
+                    default: error += exception.getMessage();
+                }
+                Log.e(TAG, error, exception);
+                Toast.makeText(CameraCaptureActivity.this, error, Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -177,11 +226,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 List<YoloDetector.Recognition> results = detector.detect(bitmap);
                 for (YoloDetector.Recognition r : results) {
                     aiDetections.add(new Detection(r.label, r.confidence));
-                    Log.d(TAG, "AI Detected: " + r.label + " with confidence " + r.confidence);
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "AI Inference failed", e);
+            Log.e(TAG, "AI Inference error", e);
         }
     }
 
@@ -189,11 +237,9 @@ public class CameraCaptureActivity extends AppCompatActivity {
         String fileName = "incidents/" + incidentId + "/step_" + currentStep + ".jpg";
         StorageReference storageRef = storage.getReference().child(fileName);
 
-        Log.d(TAG, "Uploading photo to Firebase: " + fileName);
         storageRef.putFile(Uri.fromFile(file))
                 .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                     photoUrls.add(uri.toString());
-                    Log.d(TAG, "Upload successful, URL: " + uri.toString());
                     if (currentStep < steps.length) {
                         currentStep++;
                         updateGuide();
@@ -201,10 +247,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
                         saveIncidentToFirestore();
                     }
                 }))
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Firebase Upload failed", e);
-                    Toast.makeText(this, "Upload failed", Toast.LENGTH_SHORT).show();
-                });
+                .addOnFailureListener(e -> Toast.makeText(this, "Firebase Upload Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     private void saveIncidentToFirestore() {
@@ -219,14 +262,12 @@ public class CameraCaptureActivity extends AppCompatActivity {
         incident.setLocation(crashLocation);
         incident.setStatus("Assessment Complete");
         
-        Log.d(TAG, "Saving incident to Firestore");
         firestoreRepository.logIncident(incident)
                 .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Incident saved successfully");
-                    Toast.makeText(this, "AI Assessment Complete!", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Assessment Saved to Cloud!", Toast.LENGTH_LONG).show();
                     finish();
                 })
-                .addOnFailureListener(e -> Log.e(TAG, "Failed to save incident", e));
+                .addOnFailureListener(e -> Toast.makeText(this, "Firestore Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     private void updateGuide() {
@@ -234,23 +275,16 @@ public class CameraCaptureActivity extends AppCompatActivity {
     }
 
     private boolean allPermissionsGranted() {
-        boolean cameraGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
-        boolean locationGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-        Log.d(TAG, "Permissions - Camera: " + cameraGranted + ", Location: " + locationGranted);
-        return cameraGranted && locationGranted;
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+               ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 10) {
-            if (allPermissionsGranted()) {
-                startCamera();
-                fetchCurrentLocation();
-            } else {
-                Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show();
-                finish();
-            }
+        if (requestCode == 10 && allPermissionsGranted()) {
+            startCamera();
+            fetchCurrentLocation();
         }
     }
 

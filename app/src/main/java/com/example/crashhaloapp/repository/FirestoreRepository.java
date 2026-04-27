@@ -3,10 +3,13 @@ package com.example.crashhaloapp.repository;
 import com.example.crashhaloapp.models.Incident;
 import com.example.crashhaloapp.models.User;
 import com.example.crashhaloapp.models.Vehicle;
+import com.example.crashhaloapp.models.Workshop;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
+
+import java.util.Map;
 
 public class FirestoreRepository {
 
@@ -14,10 +17,15 @@ public class FirestoreRepository {
     private final CollectionReference usersRef = db.collection("Users");
     private final CollectionReference vehiclesRef = db.collection("Vehicles");
     private final CollectionReference incidentsRef = db.collection("Incidents");
+    private final CollectionReference workshopsRef = db.collection("Workshops");
 
     // --- USER OPERATIONS ---
     public Task<Void> saveUser(User user) {
         return usersRef.document(user.getUid()).set(user);
+    }
+
+    public Task<Void> updateUserProfile(String uid, Map<String, Object> updates) {
+        return usersRef.document(uid).update(updates);
     }
 
     public Task<Void> updateUserName(String uid, String newName) {
@@ -44,6 +52,10 @@ public class FirestoreRepository {
         return vehiclesRef.document(vid).set(vehicle);
     }
 
+    public Task<Void> updateVehicle(String vid, Map<String, Object> updates) {
+        return vehiclesRef.document(vid).update(updates);
+    }
+
     public Task<QuerySnapshot> getVehiclesForUser(String uid) {
         return vehiclesRef.whereEqualTo("uid", uid).get();
     }
@@ -61,5 +73,10 @@ public class FirestoreRepository {
 
     public Task<QuerySnapshot> getIncidentsForVehicle(String vid) {
         return incidentsRef.whereEqualTo("vid", vid).get();
+    }
+
+    // --- WORKSHOP OPERATIONS ---
+    public Task<QuerySnapshot> getNearbyWorkshops() {
+        return workshopsRef.get();
     }
 }

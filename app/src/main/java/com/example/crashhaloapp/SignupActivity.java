@@ -2,6 +2,7 @@ package com.example.crashhaloapp;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,9 +11,14 @@ import com.example.crashhaloapp.databinding.ActivitySignupBinding;
 import com.example.crashhaloapp.models.User;
 import com.example.crashhaloapp.repository.AuthRepository;
 import com.example.crashhaloapp.repository.FirestoreRepository;
+import com.google.firebase.FirebaseNetworkException;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 
 public class SignupActivity extends AppCompatActivity {
 
+    private static final String TAG = "SignupActivity";
     private ActivitySignupBinding binding;
     private AuthRepository authRepository;
     private FirestoreRepository firestoreRepository;
@@ -36,6 +42,11 @@ public class SignupActivity extends AppCompatActivity {
                 return;
             }
 
+            if (password.length() < 6) {
+                Toast.makeText(this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             authRepository.signUp(email, password)
                     .addOnSuccessListener(authResult -> {
                         String uid = authResult.getUser().getUid();
@@ -45,9 +56,24 @@ public class SignupActivity extends AppCompatActivity {
                                     startActivity(new Intent(SignupActivity.this, MainActivity.class));
                                     finish();
                                 })
-                                .addOnFailureListener(e -> Toast.makeText(this, "Database Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "Firestore Error: ", e);
+                                    Toast.makeText(this, "DB Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                });
                     })
-                    .addOnFailureListener(e -> Toast.makeText(this, "Signup Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    .addOnFailureListener(e -> {
+                        String errorMsg = "Signup Failed";
+                        if (e instanceof FirebaseAuthException) {
+                            errorMsg += " Code: " + ((FirebaseAuthException) e).getErrorCode();
+                        } else if (e instanceof FirebaseNetworkException) {
+                            errorMsg += ": Network error. Check internet.";
+                        } else {
+                            errorMsg += ": " + e.getLocalizedMessage();
+                        }
+                        
+                        Log.e(TAG, "Auth Error Details: ", e);
+                        Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
+                    });
         });
 
         binding.txtLogin.setOnClickListener(v -> finish());

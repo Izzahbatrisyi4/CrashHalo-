@@ -46,11 +46,26 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="48dp"
         android:src="@android:drawable/ic_menu_camera"
+        android:contentDescription="Take Photo"
         app:backgroundTint="@color/white"
         app:fabSize="normal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:tint="@color/brand_blue" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/gallery_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:src="@android:drawable/ic_menu_gallery"
+        android:contentDescription="Open Gallery"
+        app:backgroundTint="@color/white"
+        app:fabSize="mini"
+        app:layout_constraintBottom_toBottomOf="@id/capture_button"
+        app:layout_constraintStart_toEndOf="@id/capture_button"
+        app:layout_constraintTop_toTopOf="@id/capture_button"
         app:tint="@color/brand_blue" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
