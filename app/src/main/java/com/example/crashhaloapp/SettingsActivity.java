@@ -21,7 +21,6 @@ import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
 import com.example.crashhaloapp.databinding.ActivitySettingsBinding;
-import com.example.crashhaloapp.models.User;
 import com.example.crashhaloapp.repository.AuthRepository;
 import com.example.crashhaloapp.repository.FirestoreRepository;
 import com.google.firebase.auth.FirebaseUser;
@@ -73,6 +72,14 @@ public class SettingsActivity extends AppCompatActivity {
 
         binding.btnClearCache.setOnClickListener(v -> 
                 Toast.makeText(this, "Cache Cleared", Toast.LENGTH_SHORT).show());
+
+        binding.btnLogout.setOnClickListener(v -> {
+            authRepository.signOut();
+            Intent intent = new Intent(SettingsActivity.this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+        });
     }
 
     private void loadUserProfile() {

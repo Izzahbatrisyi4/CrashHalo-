@@ -24,7 +24,7 @@ public class YoloDetector {
     
     private Interpreter interpreter;
     private List<String> labels;
-    private final int inputSize = 640; // Default YOLOv8 size
+    private final int inputSize = 640;
 
     public YoloDetector(Context context) throws IOException {
         MappedByteBuffer modelBuffer = FileUtil.loadMappedFile(context, MODEL_FILE);
@@ -38,7 +38,7 @@ public class YoloDetector {
         tensorImage.load(bitmap);
 
         ImageProcessor imageProcessor = new ImageProcessor.Builder()
-                .add(new ResizeOp(inputSize, inputSize, ResizeOp.Method.BILINEAR))
+                .add(new ResizeOp(inputSize, inputSize, ResizeOp.ResizeMethod.BILINEAR))
                 .add(new NormalizeOp(0f, 255f)) // Normalize to [0,1]
                 .build();
 

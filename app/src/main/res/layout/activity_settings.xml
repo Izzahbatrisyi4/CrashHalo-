@@ -442,6 +442,19 @@
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/grey_100" android:layout_marginHorizontal="16dp"/>
 
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_logout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Log Out"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:gravity="start|center_vertical"
+                        android:textColor="@color/brand_blue"
+                        app:icon="@android:drawable/ic_lock_power_off"
+                        app:iconTint="@color/brand_blue"/>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/grey_100" android:layout_marginHorizontal="16dp"/>
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_delete_account"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
