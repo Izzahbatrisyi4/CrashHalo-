@@ -39,33 +39,45 @@
             android:textStyle="bold" />
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Camera Controls -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/capture_button"
+    <!-- Centered Camera Controls Container -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="48dp"
-        android:src="@android:drawable/ic_menu_camera"
-        android:contentDescription="Take Photo"
-        app:backgroundTint="@color/white"
-        app:fabSize="normal"
+        android:gravity="center"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:tint="@color/brand_blue" />
+        app:layout_constraintStart_toStartOf="parent">
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/gallery_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:src="@android:drawable/ic_menu_gallery"
-        android:contentDescription="Open Gallery"
-        app:backgroundTint="@color/white"
-        app:fabSize="mini"
-        app:layout_constraintBottom_toBottomOf="@id/capture_button"
-        app:layout_constraintStart_toEndOf="@id/capture_button"
-        app:layout_constraintTop_toTopOf="@id/capture_button"
-        app:tint="@color/brand_blue" />
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/gallery_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="24dp"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:contentDescription="Open Gallery"
+            app:backgroundTint="@color/white"
+            app:fabSize="mini"
+            app:tint="@color/brand_blue" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/capture_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_camera"
+            android:contentDescription="Take Photo"
+            app:backgroundTint="@color/white"
+            app:fabSize="normal"
+            app:tint="@color/brand_blue" />
+
+        <!-- Placeholder to keep symmetry if needed, or just leave it off-center slightly -->
+        <View
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="24dp"
+            android:visibility="invisible" />
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -121,7 +121,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
     }
 
     private void handleGalleryImage(Uri uri) {
-        File outputDir = getExternalFilesDir(null);
+        File outputDir = getExternalFilesDir(null); 
         if (outputDir == null) return;
         
         File photoFile = new File(outputDir, "incident_" + incidentId + "_step_" + currentStep + ".jpg");
@@ -135,7 +135,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 outputStream.write(buf, 0, len);
             }
             
-            Toast.makeText(this, "Step " + currentStep + " Selected from Gallery", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Step " + currentStep + " Selected", Toast.LENGTH_SHORT).show();
             
             if (currentStep == 3) {
                 cameraExecutor.execute(() -> runAiInference(photoFile));
@@ -144,7 +144,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
             
         } catch (IOException e) {
             Log.e(TAG, "Error saving gallery image", e);
-            Toast.makeText(this, "Failed to load image from gallery", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -175,19 +175,14 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
                 
                 isCameraReady = true;
-                Log.d(TAG, "Camera is ready and bound.");
-
             } catch (ExecutionException | InterruptedException e) {
-                Log.e(TAG, "CameraX Initialization failed", e);
-                Toast.makeText(this, "Camera initialization failed", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "CameraX failed", e);
             }
         }, ContextCompat.getMainExecutor(this));
     }
 
     private void takePhoto() {
-        if (imageCapture == null) return;
-
-        File outputDir = getExternalFilesDir(null);
+        File outputDir = getExternalFilesDir(null); 
         if (outputDir == null) return;
         
         File photoFile = new File(outputDir, "incident_" + incidentId + "_step_" + currentStep + ".jpg");
@@ -197,7 +192,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                 Toast.makeText(CameraCaptureActivity.this, "Step " + currentStep + " Captured", Toast.LENGTH_SHORT).show();
-                
                 if (currentStep == 3) {
                     cameraExecutor.execute(() -> runAiInference(photoFile));
                 }
@@ -206,13 +200,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
             @Override
             public void onError(@NonNull ImageCaptureException exception) {
-                String error = "Capture Failed: ";
-                switch (exception.getImageCaptureError()) {
-                    case ImageCapture.ERROR_CAMERA_CLOSED: error += "Camera closed"; break;
-                    case ImageCapture.ERROR_FILE_IO: error += "Storage error"; break;
-                    case ImageCapture.ERROR_CAPTURE_FAILED: error += "Capture failed"; break;
-                    default: error += exception.getMessage();
-                }
+                String error = "Capture Failed: " + exception.getMessage();
                 Log.e(TAG, error, exception);
                 Toast.makeText(CameraCaptureActivity.this, error, Toast.LENGTH_LONG).show();
             }
@@ -229,7 +217,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "AI Inference error", e);
+            Log.e(TAG, "AI Error", e);
         }
     }
 
@@ -247,7 +235,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
                         saveIncidentToFirestore();
                     }
                 }))
-                .addOnFailureListener(e -> Toast.makeText(this, "Firebase Upload Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Upload failed", e);
+                    Toast.makeText(this, "Storage Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
     }
 
     private void saveIncidentToFirestore() {
@@ -264,10 +255,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
         
         firestoreRepository.logIncident(incident)
                 .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Assessment Saved to Cloud!", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Report Saved!", Toast.LENGTH_LONG).show();
                     finish();
                 })
-                .addOnFailureListener(e -> Toast.makeText(this, "Firestore Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                .addOnFailureListener(e -> Toast.makeText(this, "Database Error", Toast.LENGTH_SHORT).show());
     }
 
     private void updateGuide() {
