@@ -55,6 +55,10 @@ public class FirestoreRepository {
         return incidentsRef.document(incidentId).set(incident);
     }
 
+    public Task<QuerySnapshot> getIncidentsForUser(String uid) {
+        return incidentsRef.whereEqualTo("uid", uid).get();
+    }
+
     public Task<QuerySnapshot> getIncidentsForVehicle(String vid) {
         return incidentsRef.whereEqualTo("vid", vid).get();
     }
