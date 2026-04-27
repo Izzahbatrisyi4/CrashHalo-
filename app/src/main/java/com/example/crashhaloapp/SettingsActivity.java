@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
 import com.example.crashhaloapp.databinding.ActivitySettingsBinding;
+import com.example.crashhaloapp.models.User;
 import com.example.crashhaloapp.repository.AuthRepository;
 import com.example.crashhaloapp.repository.FirestoreRepository;
 import com.google.firebase.auth.FirebaseUser;
@@ -66,9 +67,6 @@ public class SettingsActivity extends AppCompatActivity {
 
         binding.imgProfileBig.setOnClickListener(v -> imagePickerLauncher.launch("image/*"));
         binding.btnEditProfile.setOnClickListener(v -> showEditNameDialog());
-
-        binding.switchAutoAlert.setOnCheckedChangeListener((buttonView, isChecked) -> 
-                Toast.makeText(this, "Auto-Alert: " + (isChecked ? "ON" : "OFF"), Toast.LENGTH_SHORT).show());
 
         binding.btnClearCache.setOnClickListener(v -> 
                 Toast.makeText(this, "Cache Cleared", Toast.LENGTH_SHORT).show());

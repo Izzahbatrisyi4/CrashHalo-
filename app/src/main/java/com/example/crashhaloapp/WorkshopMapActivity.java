@@ -3,6 +3,7 @@ package com.example.crashhaloapp;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
@@ -11,6 +12,7 @@ import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.example.crashhaloapp.databinding.ActivityWorkshopMapBinding;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -30,6 +32,7 @@ public class WorkshopMapActivity extends AppCompatActivity {
     private FusedLocationProviderClient fusedLocationClient;
     private GeoPoint userLocation;
     private GeoPoint crashLocation;
+    private Marker userMarker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +78,8 @@ public class WorkshopMapActivity extends AppCompatActivity {
                 if (location != null) {
                     userLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
                     
+                    updateUserMarker();
+
                     // Center on crash location if available, otherwise user location
                     if (crashLocation != null) {
                         binding.map.getController().animateTo(crashLocation);
@@ -89,17 +94,31 @@ public class WorkshopMapActivity extends AppCompatActivity {
         }
     }
 
+    private void updateUserMarker() {
+        if (userMarker == null) {
+            userMarker = new Marker(binding.map);
+            userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
+            userMarker.setTitle("YOUR LOCATION");
+            Drawable carIcon = ContextCompat.getDrawable(this, R.drawable.ic_car);
+            if (carIcon != null) {
+                userMarker.setIcon(carIcon);
+            }
+            binding.map.getOverlays().add(userMarker);
+        }
+        userMarker.setPosition(userLocation);
+        binding.map.invalidate();
+    }
+
     private void addCrashMarker() {
         Marker marker = new Marker(binding.map);
         marker.setPosition(crashLocation);
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
         marker.setTitle("CRASH LOCATION");
-        // Optional: marker.setIcon(getResources().getDrawable(R.drawable.ic_crash_marker));
+        // You could use a specific "crash" icon here if you have one
         binding.map.getOverlays().add(marker);
     }
 
     private void addWorkshopMarkers() {
-        // Use userLocation if crashLocation is null, otherwise use crashLocation for "nearby" logic
         GeoPoint center = (crashLocation != null) ? crashLocation : userLocation;
 
         addMarker(new GeoPoint(center.getLatitude() + 0.005, center.getLongitude() + 0.005), "Top Gear Auto Clinic");
@@ -125,7 +144,6 @@ public class WorkshopMapActivity extends AppCompatActivity {
         binding.workshopDetailsCard.setVisibility(View.VISIBLE);
         binding.txtWorkshopName.setText(marker.getTitle());
         
-        // Calculate Distance from user's current location to workshop
         float[] results = new float[1];
         Location.distanceBetween(userLocation.getLatitude(), userLocation.getLongitude(), 
                 marker.getPosition().getLatitude(), marker.getPosition().getLongitude(), results);

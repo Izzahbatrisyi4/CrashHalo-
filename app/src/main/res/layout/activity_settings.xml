@@ -210,67 +210,6 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Emergency Section -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-black"
-                android:text="EMERGENCY"
-                android:textColor="@color/brand_blue"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.1"/>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="2dp"
-                app:strokeColor="@color/grey_100"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="8dp">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Emergency Contacts"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:gravity="start|center_vertical"
-                        android:textColor="@color/text_primary"
-                        app:icon="@drawable/ic_user"
-                        app:iconTint="@color/brand_blue"/>
-
-                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/grey_100" android:layout_marginHorizontal="16dp"/>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="16dp"
-                        android:gravity="center_vertical">
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Auto-Alert Impact"
-                            android:textColor="@color/text_primary"/>
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switch_auto_alert"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
-                    </LinearLayout>
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
             <!-- Notifications Section -->
             <TextView
                 android:layout_width="wrap_content"
@@ -348,7 +287,8 @@
                 android:text="DATA MANAGEMENT"
                 android:textColor="@color/brand_blue"
                 android:textSize="12sp"
-                android:textStyle="bold" android:letterSpacing="0.1"/>
+                android:textStyle="bold"
+                android:letterSpacing="0.1"/>
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -409,7 +349,8 @@
                 android:text="ACCOUNT"
                 android:textColor="@color/brand_blue"
                 android:textSize="12sp"
-                android:textStyle="bold" android:letterSpacing="0.1"/>
+                android:textStyle="bold"
+                android:letterSpacing="0.1"/>
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
