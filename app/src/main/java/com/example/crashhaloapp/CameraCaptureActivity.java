@@ -210,7 +210,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 switch (exception.getImageCaptureError()) {
                     case ImageCapture.ERROR_CAMERA_CLOSED: error += "Camera closed"; break;
                     case ImageCapture.ERROR_FILE_IO: error += "Storage error"; break;
-                    case ImageCapture.ERROR_INVALID_CAMERA_CONTROLS: error += "Invalid controls"; break;
+                    case ImageCapture.ERROR_CAPTURE_FAILED: error += "Capture failed"; break;
                     default: error += exception.getMessage();
                 }
                 Log.e(TAG, error, exception);
