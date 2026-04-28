@@ -18,7 +18,6 @@ import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
-import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -26,14 +25,9 @@ import com.example.crashhaloapp.databinding.ActivityCameraCaptureBinding;
 import com.example.crashhaloapp.ml.YoloDetector;
 import com.example.crashhaloapp.models.Detection;
 import com.example.crashhaloapp.models.Incident;
-import com.example.crashhaloapp.repository.FirestoreRepository;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
+import com.example.crashhaloapp.models.User;
+import com.example.crashhaloapp.utils.LocalDatabase;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.GeoPoint;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -52,7 +46,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private ActivityCameraCaptureBinding binding;
     private ImageCapture imageCapture;
     private ExecutorService cameraExecutor;
-    private FusedLocationProviderClient fusedLocationClient;
 
     private int currentStep = 1;
     private final String[] steps = {
@@ -61,12 +54,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
         "STEP 3: TAKE PHOTO OF DAMAGE AREA"
     };
 
-    private List<String> photoUrls = new ArrayList<>();
+    private List<String> photoPaths = new ArrayList<>();
     private List<Detection> aiDetections = new ArrayList<>();
     private String incidentId;
-    private GeoPoint crashLocation;
-    private FirebaseStorage storage;
-    private FirestoreRepository firestoreRepository;
+    private LocalDatabase localDatabase;
     private YoloDetector detector;
     private boolean isCameraReady = false;
 
@@ -78,9 +69,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
         binding = ActivityCameraCaptureBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        storage = FirebaseStorage.getInstance();
-        firestoreRepository = new FirestoreRepository();
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        localDatabase = new LocalDatabase(this);
         incidentId = UUID.randomUUID().toString();
 
         try {
@@ -97,14 +86,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
             }
         });
 
-        if (allPermissionsGranted()) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera();
-            fetchCurrentLocation();
         } else {
-            ActivityCompat.requestPermissions(this, new String[]{
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-            }, 10);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, 10);
         }
 
         binding.captureButton.setOnClickListener(v -> {
@@ -135,12 +120,13 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 outputStream.write(buf, 0, len);
             }
             
-            Toast.makeText(this, "Step " + currentStep + " Selected", Toast.LENGTH_SHORT).show();
+            saveLocalPath(photoFile);
             
             if (currentStep == 3) {
                 cameraExecutor.execute(() -> runAiInference(photoFile));
             }
-            uploadPhotoToFirebase(photoFile);
+            
+            advanceStep();
             
         } catch (IOException e) {
             Log.e(TAG, "Error saving gallery image", e);
@@ -148,13 +134,17 @@ public class CameraCaptureActivity extends AppCompatActivity {
         }
     }
 
-    private void fetchCurrentLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
-                if (location != null) {
-                    crashLocation = new GeoPoint(location.getLatitude(), location.getLongitude());
-                }
-            });
+    private void saveLocalPath(File file) {
+        photoPaths.add(file.getAbsolutePath());
+        Toast.makeText(this, "Step " + currentStep + " Saved Locally", Toast.LENGTH_SHORT).show();
+    }
+
+    private void advanceStep() {
+        if (currentStep < steps.length) {
+            currentStep++;
+            updateGuide();
+        } else {
+            saveIncidentLocally();
         }
     }
 
@@ -191,11 +181,11 @@ public class CameraCaptureActivity extends AppCompatActivity {
         imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this), new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                Toast.makeText(CameraCaptureActivity.this, "Step " + currentStep + " Captured", Toast.LENGTH_SHORT).show();
+                saveLocalPath(photoFile);
                 if (currentStep == 3) {
                     cameraExecutor.execute(() -> runAiInference(photoFile));
                 }
-                uploadPhotoToFirebase(photoFile);
+                advanceStep();
             }
 
             @Override
@@ -221,61 +211,35 @@ public class CameraCaptureActivity extends AppCompatActivity {
         }
     }
 
-    private void uploadPhotoToFirebase(File file) {
-        String fileName = "incidents/" + incidentId + "/step_" + currentStep + ".jpg";
-        StorageReference storageRef = storage.getReference().child(fileName);
-
-        storageRef.putFile(Uri.fromFile(file))
-                .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                    photoUrls.add(uri.toString());
-                    if (currentStep < steps.length) {
-                        currentStep++;
-                        updateGuide();
-                    } else {
-                        saveIncidentToFirestore();
-                    }
-                }))
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Upload failed", e);
-                    Toast.makeText(this, "Storage Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
-    }
-
-    private void saveIncidentToFirestore() {
-        String uid = FirebaseAuth.getInstance().getCurrentUser() != null ? 
-                     FirebaseAuth.getInstance().getCurrentUser().getUid() : "anonymous";
+    private void saveIncidentLocally() {
+        User currentUser = localDatabase.getUser();
+        String uid = (currentUser != null) ? currentUser.getUid() : "local_user";
         
         Incident incident = new Incident();
         incident.setIncident_id(incidentId);
         incident.setUid(uid);
-        incident.setImages(photoUrls);
-        incident.setDetections(aiDetections);
-        incident.setLocation(crashLocation);
-        incident.setStatus("Assessment Complete");
+        incident.setImages(new ArrayList<>(photoPaths)); 
+        incident.setDetections(new ArrayList<>(aiDetections));
+        incident.setTimestamp(System.currentTimeMillis());
+        incident.setStatus("Assessment Complete (Local)");
         
-        firestoreRepository.logIncident(incident)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Report Saved!", Toast.LENGTH_LONG).show();
-                    finish();
-                })
-                .addOnFailureListener(e -> Toast.makeText(this, "Database Error", Toast.LENGTH_SHORT).show());
+        localDatabase.saveIncident(incident);
+        Toast.makeText(this, "Report Saved Locally!", Toast.LENGTH_LONG).show();
+        finish();
     }
 
     private void updateGuide() {
         binding.guideText.setText(steps[currentStep - 1]);
     }
 
-    private boolean allPermissionsGranted() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
-               ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 10 && allPermissionsGranted()) {
+        if (requestCode == 10 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startCamera();
-            fetchCurrentLocation();
+        } else if (requestCode == 10) {
+            Toast.makeText(this, "Camera permission is required", Toast.LENGTH_SHORT).show();
+            finish();
         }
     }
 

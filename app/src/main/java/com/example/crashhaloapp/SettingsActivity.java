@@ -7,15 +7,12 @@ import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.widget.EditText;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
@@ -23,15 +20,18 @@ import com.bumptech.glide.Glide;
 import com.example.crashhaloapp.databinding.ActivitySettingsBinding;
 import com.example.crashhaloapp.models.User;
 import com.example.crashhaloapp.repository.AuthRepository;
-import com.example.crashhaloapp.repository.FirestoreRepository;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
+import com.example.crashhaloapp.utils.LocalDatabase;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class SettingsActivity extends AppCompatActivity {
 
+    private static final String TAG = "SettingsActivity";
     private ActivitySettingsBinding binding;
-    private FirestoreRepository firestoreRepository;
+    private LocalDatabase localDatabase;
     private AuthRepository authRepository;
     private String currentUid;
     private ActivityResultLauncher<String> imagePickerLauncher;
@@ -42,8 +42,8 @@ public class SettingsActivity extends AppCompatActivity {
         binding = ActivitySettingsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        firestoreRepository = new FirestoreRepository();
-        authRepository = new AuthRepository();
+        localDatabase = new LocalDatabase(this);
+        authRepository = new AuthRepository(this);
 
         setSupportActionBar(binding.toolbar);
         if (getSupportActionBar() != null) {
@@ -60,13 +60,16 @@ public class SettingsActivity extends AppCompatActivity {
                 new ActivityResultContracts.GetContent(),
                 uri -> {
                     if (uri != null) {
-                        uploadProfileImage(uri);
+                        saveProfileImageLocally(uri);
                     }
                 }
         );
 
         binding.imgProfileBig.setOnClickListener(v -> imagePickerLauncher.launch("image/*"));
-        binding.btnEditProfile.setOnClickListener(v -> showEditNameDialog());
+        binding.btnEditProfile.setOnClickListener(v -> {
+            Intent intent = new Intent(SettingsActivity.this, ProfileManagementActivity.class);
+            startActivity(intent);
+        });
 
         binding.btnClearCache.setOnClickListener(v -> 
                 Toast.makeText(this, "Cache Cleared", Toast.LENGTH_SHORT).show());
@@ -81,89 +84,77 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void loadUserProfile() {
-        FirebaseUser user = authRepository.getCurrentUser();
+        User user = localDatabase.getUser();
         if (user != null) {
             currentUid = user.getUid();
             binding.txtProfileEmail.setText(user.getEmail());
+            binding.txtProfileName.setText(user.getFull_name());
             
-            firestoreRepository.getUser(currentUid).addOnSuccessListener(userModel -> {
-                if (userModel != null) {
-                    binding.txtProfileName.setText(userModel.getFull_name());
-                    if (userModel.getProfile_image_url() != null) {
-                        Glide.with(this)
-                                .load(userModel.getProfile_image_url())
-                                .placeholder(R.drawable.ic_user)
-                                .into(binding.imgProfileBig);
-                    }
-                } else {
-                    binding.txtProfileName.setText("Guest User");
+            if (user.getProfile_image_url() != null) {
+                File imgFile = new File(user.getProfile_image_url());
+                if (imgFile.exists()) {
+                    Glide.with(this)
+                            .load(imgFile)
+                            .placeholder(R.drawable.ic_user)
+                            .into(binding.imgProfileBig);
                 }
-            });
+            }
+        } else {
+            binding.txtProfileName.setText("Guest User");
+            binding.txtProfileEmail.setText("No email found");
         }
     }
 
-    private void uploadProfileImage(Uri imageUri) {
-        if (currentUid == null) return;
+    private void saveProfileImageLocally(Uri uri) {
+        if (currentUid == null) {
+            currentUid = "local_user";
+        }
         
-        Toast.makeText(this, "Uploading...", Toast.LENGTH_SHORT).show();
-        StorageReference storageRef = FirebaseStorage.getInstance().getReference()
-                .child("profile_images/" + currentUid + ".jpg");
+        File outputDir = getExternalFilesDir(null);
+        if (outputDir == null) return;
 
-        storageRef.putFile(imageUri).addOnSuccessListener(taskSnapshot -> 
-            storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                String downloadUrl = uri.toString();
-                updateProfileImageUrl(downloadUrl);
-            })
-        ).addOnFailureListener(e -> Toast.makeText(this, "Upload Failed", Toast.LENGTH_SHORT).show());
+        File profileFile = new File(outputDir, "profile_" + currentUid + ".jpg");
+
+        try (InputStream inputStream = getContentResolver().openInputStream(uri);
+             FileOutputStream outputStream = new FileOutputStream(profileFile)) {
+            
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buf)) > 0) {
+                outputStream.write(buf, 0, len);
+            }
+            
+            updateProfileImageUrl(profileFile.getAbsolutePath());
+            
+        } catch (IOException e) {
+            Log.e(TAG, "Error saving profile image", e);
+            Toast.makeText(this, "Failed to update photo", Toast.LENGTH_SHORT).show();
+        }
     }
 
-    private void updateProfileImageUrl(String url) {
-        firestoreRepository.updateUserProfileImage(currentUid, url)
-                .addOnSuccessListener(aVoid -> {
-                    Glide.with(this).load(url).into(binding.imgProfileBig);
-                    Toast.makeText(this, "Photo Updated", Toast.LENGTH_SHORT).show();
-                });
-    }
-
-    private void showEditNameDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_name, null);
-        EditText editName = view.findViewById(R.id.edit_full_name);
+    private void updateProfileImageUrl(String localPath) {
+        User user = localDatabase.getUser();
+        if (user == null) {
+            user = new User();
+            user.setUid("local_user");
+        }
         
-        editName.setText(binding.txtProfileName.getText().toString());
+        user.setProfile_image_url(localPath);
+        localDatabase.saveUser(user);
         
-        builder.setView(view)
-                .setTitle("Edit Name")
-                .setPositiveButton("Save", (dialog, which) -> {
-                    String newName = editName.getText().toString().trim();
-                    if (!newName.isEmpty()) {
-                        updateName(newName);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void updateName(String newName) {
-        if (currentUid == null) return;
-        
-        firestoreRepository.updateUserName(currentUid, newName)
-                .addOnSuccessListener(aVoid -> {
-                    binding.txtProfileName.setText(newName);
-                    Toast.makeText(this, "Profile Updated", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e -> Toast.makeText(this, "Update Failed", Toast.LENGTH_SHORT).show());
+        Glide.with(this).load(new File(localPath)).into(binding.imgProfileBig);
+        Toast.makeText(this, "Photo Updated Locally", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        loadUserProfile();
         updatePermissionStatus();
     }
 
     private void updatePermissionStatus() {
         updateIcon(binding.statusCamera, Manifest.permission.CAMERA);
-        updateIcon(binding.statusLocation, Manifest.permission.ACCESS_FINE_LOCATION);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             updateIcon(binding.statusStorage, Manifest.permission.READ_MEDIA_IMAGES);

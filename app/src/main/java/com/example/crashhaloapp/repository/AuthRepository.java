@@ -1,35 +1,46 @@
 package com.example.crashhaloapp.repository;
 
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.auth.AuthResult;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+import android.content.Context;
+import com.example.crashhaloapp.models.User;
+import com.example.crashhaloapp.utils.LocalDatabase;
 
 public class AuthRepository {
 
-    private final FirebaseAuth mAuth;
+    private final LocalDatabase localDatabase;
+    private static User loggedInUser = null;
 
-    public AuthRepository() {
-        mAuth = FirebaseAuth.getInstance();
+    public AuthRepository(Context context) {
+        this.localDatabase = new LocalDatabase(context);
     }
 
-    public FirebaseUser getCurrentUser() {
-        return mAuth.getCurrentUser();
+    public User getCurrentUser() {
+        if (loggedInUser == null) {
+            loggedInUser = localDatabase.getUser();
+        }
+        return loggedInUser;
     }
 
-    public Task<AuthResult> signUp(String email, String password) {
-        return mAuth.createUserWithEmailAndPassword(email, password);
+    public boolean signIn(String email, String password) {
+        User user = localDatabase.getUser();
+        if (user != null && user.getEmail().equals(email)) {
+            // In a real app, you'd check the password, but for this local demo:
+            loggedInUser = user;
+            return true;
+        }
+        return false;
     }
 
-    public Task<AuthResult> signIn(String email, String password) {
-        return mAuth.signInWithEmailAndPassword(email, password);
+    public void signUp(User user) {
+        localDatabase.saveUser(user);
+        loggedInUser = user;
     }
 
     public void signOut() {
-        mAuth.signOut();
+        loggedInUser = null;
+        // In a real local app, you might want to clear a "session" flag in SharedPreferences
     }
 
     public boolean isUserLoggedIn() {
-        return mAuth.getCurrentUser() != null;
+        return getCurrentUser() != null;
     }
 }

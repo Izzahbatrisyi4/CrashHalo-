@@ -1,29 +1,24 @@
 package com.example.crashhaloapp.models;
 
-import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.GeoPoint;
-import com.google.firebase.firestore.ServerTimestamp;
 import java.util.List;
 
 public class Incident {
     private String incident_id;
     private String vid; // Foreign Key to Vehicles
     private String uid; // Foreign Key to Users
-    @ServerTimestamp
-    private Timestamp timestamp;
-    private GeoPoint location;
+    private long timestamp;
     private String status;
     private String pdf_url;
     private List<Detection> detections;
-    private List<String> images; // List of URLs for the insurance timeline
+    private List<String> images; // List of local file paths
 
     public Incident() {}
 
-    public Incident(String incident_id, String vid, String uid, GeoPoint location, String status, String pdf_url, List<Detection> detections, List<String> images) {
+    public Incident(String incident_id, String vid, String uid, long timestamp, String status, String pdf_url, List<Detection> detections, List<String> images) {
         this.incident_id = incident_id;
         this.vid = vid;
         this.uid = uid;
-        this.location = location;
+        this.timestamp = timestamp;
         this.status = status;
         this.pdf_url = pdf_url;
         this.detections = detections;
@@ -37,10 +32,8 @@ public class Incident {
     public void setVid(String vid) { this.vid = vid; }
     public String getUid() { return uid; }
     public void setUid(String uid) { this.uid = uid; }
-    public Timestamp getTimestamp() { return timestamp; }
-    public void setTimestamp(Timestamp timestamp) { this.timestamp = timestamp; }
-    public GeoPoint getLocation() { return location; }
-    public void setLocation(GeoPoint location) { this.location = location; }
+    public long getTimestamp() { return timestamp; }
+    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getPdf_url() { return pdf_url; }

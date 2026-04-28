@@ -17,10 +17,9 @@ import com.bumptech.glide.Glide;
 import com.example.crashhaloapp.adapter.IncidentAdapter;
 import com.example.crashhaloapp.databinding.ActivityMainBinding;
 import com.example.crashhaloapp.models.Incident;
-import com.example.crashhaloapp.repository.AuthRepository;
-import com.example.crashhaloapp.repository.FirestoreRepository;
+import com.example.crashhaloapp.models.User;
+import com.example.crashhaloapp.utils.LocalDatabase;
 import com.example.crashhaloapp.utils.PdfReportGenerator;
-import com.google.firebase.auth.FirebaseUser;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -29,8 +28,7 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
-    private AuthRepository authRepository;
-    private FirestoreRepository firestoreRepository;
+    private LocalDatabase localDatabase;
     private IncidentAdapter adapter;
     private List<Incident> incidentList = new ArrayList<>();
 
@@ -40,8 +38,7 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        authRepository = new AuthRepository();
-        firestoreRepository = new FirestoreRepository();
+        localDatabase = new LocalDatabase(this);
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.main, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -63,11 +60,6 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        binding.btnMap.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, WorkshopMapActivity.class);
-            startActivity(intent);
-        });
-
         binding.btnSettings.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
             startActivity(intent);
@@ -76,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
         binding.btnHistory.setOnClickListener(v -> {
             binding.scrollView.smoothScrollTo(0, 0);
             loadIncidents();
-            Toast.makeText(this, "History Updated", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "History Refreshed", Toast.LENGTH_SHORT).show();
         });
 
         binding.btnHome.setOnClickListener(v -> {
@@ -86,56 +78,62 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupRecyclerView() {
         adapter = new IncidentAdapter(incidentList, incident -> {
-            File pdfFile = PdfReportGenerator.generateReport(this, incident);
+            // Number is based on list index (newest is first in list)
+            int reportNumber = incidentList.size() - incidentList.indexOf(incident);
+            File pdfFile = PdfReportGenerator.generateReport(this, incident, reportNumber);
             if (pdfFile != null) {
-                sharePdfReport(pdfFile);
+                openPdfReport(pdfFile);
             }
         });
         binding.rvIncidents.setLayoutManager(new LinearLayoutManager(this));
         binding.rvIncidents.setAdapter(adapter);
     }
 
+    private void openPdfReport(File file) {
+        Uri pdfUri = FileProvider.getUriForFile(this, "com.example.crashhaloapp.fileprovider", file);
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(pdfUri, "application/pdf");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(Intent.createChooser(intent, "View Report"));
+        } catch (Exception e) {
+            sharePdfReport(file);
+        }
+    }
+
     private void sharePdfReport(File file) {
         Uri pdfUri = FileProvider.getUriForFile(this, "com.example.crashhaloapp.fileprovider", file);
-        
         Intent shareIntent = new Intent(Intent.ACTION_SEND);
         shareIntent.setType("application/pdf");
         shareIntent.putExtra(Intent.EXTRA_STREAM, pdfUri);
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        
-        startActivity(Intent.createChooser(shareIntent, "Share Accident Report via:"));
+        startActivity(Intent.createChooser(shareIntent, "Share Accident Report"));
     }
 
     private void loadIncidents() {
-        FirebaseUser user = authRepository.getCurrentUser();
-        if (user != null) {
-            firestoreRepository.getIncidentsForUser(user.getUid()).addOnSuccessListener(queryDocumentSnapshots -> {
-                incidentList.clear();
-                incidentList.addAll(queryDocumentSnapshots.toObjects(Incident.class));
-                
-                if (incidentList.isEmpty()) {
-                    binding.emptyState.setVisibility(View.VISIBLE);
-                    binding.rvIncidents.setVisibility(View.GONE);
-                } else {
-                    binding.emptyState.setVisibility(View.GONE);
-                    binding.rvIncidents.setVisibility(View.VISIBLE);
-                    adapter.notifyDataSetChanged();
-                }
-            });
+        incidentList.clear();
+        incidentList.addAll(localDatabase.getAllIncidents());
+        
+        if (incidentList.isEmpty()) {
+            binding.emptyState.setVisibility(View.VISIBLE);
+            binding.rvIncidents.setVisibility(View.GONE);
+        } else {
+            binding.emptyState.setVisibility(View.GONE);
+            binding.rvIncidents.setVisibility(View.VISIBLE);
+            adapter.notifyDataSetChanged();
         }
     }
 
     private void loadUserProfileImage() {
-        FirebaseUser user = authRepository.getCurrentUser();
-        if (user != null) {
-            firestoreRepository.getUser(user.getUid()).addOnSuccessListener(userModel -> {
-                if (userModel != null && userModel.getProfile_image_url() != null) {
-                    Glide.with(this)
-                            .load(userModel.getProfile_image_url())
-                            .placeholder(R.drawable.ic_launcher_background)
-                            .into(binding.imgProfileTop);
-                }
-            });
+        User user = localDatabase.getUser();
+        if (user != null && user.getProfile_image_url() != null) {
+            File imgFile = new File(user.getProfile_image_url());
+            if (imgFile.exists()) {
+                Glide.with(this)
+                        .load(imgFile)
+                        .placeholder(R.drawable.ic_launcher_background)
+                        .into(binding.imgProfileTop);
+            }
         }
     }
 

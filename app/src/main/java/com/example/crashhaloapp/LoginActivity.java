@@ -20,7 +20,7 @@ public class LoginActivity extends AppCompatActivity {
         binding = ActivityLoginBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        authRepository = new AuthRepository();
+        authRepository = new AuthRepository(this);
 
         if (authRepository.isUserLoggedIn()) {
             startActivity(new Intent(LoginActivity.this, MainActivity.class));
@@ -36,12 +36,12 @@ public class LoginActivity extends AppCompatActivity {
                 return;
             }
 
-            authRepository.signIn(email, password)
-                    .addOnSuccessListener(authResult -> {
-                        startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                        finish();
-                    })
-                    .addOnFailureListener(e -> Toast.makeText(this, "Login Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            if (authRepository.signIn(email, password)) {
+                startActivity(new Intent(LoginActivity.this, MainActivity.class));
+                finish();
+            } else {
+                Toast.makeText(this, "Login Failed: Invalid credentials or user not found locally.", Toast.LENGTH_SHORT).show();
+            }
         });
 
         binding.txtSignup.setOnClickListener(v -> {

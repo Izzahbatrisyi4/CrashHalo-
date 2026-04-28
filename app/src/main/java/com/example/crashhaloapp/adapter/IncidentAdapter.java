@@ -64,7 +64,8 @@ public class IncidentAdapter extends RecyclerView.Adapter<IncidentAdapter.Incide
             txtVehicleName.setText(incident.getVid() != null ? incident.getVid() : "Unknown Vehicle");
             
             SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault());
-            String dateStr = incident.getTimestamp() != null ? sdf.format(incident.getTimestamp().toDate()) : sdf.format(new Date());
+            // Since timestamp is now a 'long', we check if it's > 0 and format it using new Date(long)
+            String dateStr = (incident.getTimestamp() > 0) ? sdf.format(new Date(incident.getTimestamp())) : sdf.format(new Date());
             txtDateLocation.setText(dateStr);
             
             txtStatus.setText(incident.getStatus() != null ? incident.getStatus().toUpperCase() : "PENDING");

@@ -2,26 +2,20 @@ package com.example.crashhaloapp;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.crashhaloapp.databinding.ActivitySignupBinding;
 import com.example.crashhaloapp.models.User;
-import com.example.crashhaloapp.repository.AuthRepository;
-import com.example.crashhaloapp.repository.FirestoreRepository;
-import com.google.firebase.FirebaseNetworkException;
-import com.google.firebase.auth.FirebaseAuthException;
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
-import com.google.firebase.auth.FirebaseAuthUserCollisionException;
+import com.example.crashhaloapp.utils.LocalDatabase;
+
+import java.util.UUID;
 
 public class SignupActivity extends AppCompatActivity {
 
-    private static final String TAG = "SignupActivity";
     private ActivitySignupBinding binding;
-    private AuthRepository authRepository;
-    private FirestoreRepository firestoreRepository;
+    private LocalDatabase localDatabase;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,8 +23,7 @@ public class SignupActivity extends AppCompatActivity {
         binding = ActivitySignupBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        authRepository = new AuthRepository();
-        firestoreRepository = new FirestoreRepository();
+        localDatabase = new LocalDatabase(this);
 
         binding.btnSignup.setOnClickListener(v -> {
             String name = binding.editName.getText().toString().trim();
@@ -47,33 +40,20 @@ public class SignupActivity extends AppCompatActivity {
                 return;
             }
 
-            authRepository.signUp(email, password)
-                    .addOnSuccessListener(authResult -> {
-                        String uid = authResult.getUser().getUid();
-                        User newUser = new User(uid, name, email, "");
-                        firestoreRepository.saveUser(newUser)
-                                .addOnSuccessListener(aVoid -> {
-                                    startActivity(new Intent(SignupActivity.this, MainActivity.class));
-                                    finish();
-                                })
-                                .addOnFailureListener(e -> {
-                                    Log.e(TAG, "Firestore Error: ", e);
-                                    Toast.makeText(this, "DB Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                                });
-                    })
-                    .addOnFailureListener(e -> {
-                        String errorMsg = "Signup Failed";
-                        if (e instanceof FirebaseAuthException) {
-                            errorMsg += " Code: " + ((FirebaseAuthException) e).getErrorCode();
-                        } else if (e instanceof FirebaseNetworkException) {
-                            errorMsg += ": Network error. Check internet.";
-                        } else {
-                            errorMsg += ": " + e.getLocalizedMessage();
-                        }
-                        
-                        Log.e(TAG, "Auth Error Details: ", e);
-                        Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
-                    });
+            // Local-only Signup: Save to internal JSON storage
+            String uid = UUID.randomUUID().toString();
+            User newUser = new User(uid, name, email, ""); // Initializing with empty phone
+            newUser.setCreated_at(System.currentTimeMillis());
+            
+            localDatabase.saveUser(newUser);
+            
+            Toast.makeText(this, "Account Created Locally!", Toast.LENGTH_SHORT).show();
+            
+            // Navigate to Home
+            Intent intent = new Intent(SignupActivity.this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
         });
 
         binding.txtLogin.setOnClickListener(v -> finish());

@@ -1,8 +1,8 @@
 package com.example.crashhaloapp;
 
-import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -13,20 +13,20 @@ import com.bumptech.glide.Glide;
 import com.example.crashhaloapp.databinding.ActivityProfileManagementBinding;
 import com.example.crashhaloapp.models.User;
 import com.example.crashhaloapp.models.Vehicle;
-import com.example.crashhaloapp.repository.AuthRepository;
-import com.example.crashhaloapp.repository.FirestoreRepository;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
+import com.example.crashhaloapp.utils.LocalDatabase;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import java.util.UUID;
 
 public class ProfileManagementActivity extends AppCompatActivity {
 
+    private static final String TAG = "ProfileManagementActivity";
     private ActivityProfileManagementBinding binding;
-    private FirestoreRepository firestoreRepository;
-    private AuthRepository authRepository;
+    private LocalDatabase localDatabase;
     private String currentUid;
     private String currentVid;
     private ActivityResultLauncher<String> imagePickerLauncher;
@@ -37,8 +37,7 @@ public class ProfileManagementActivity extends AppCompatActivity {
         binding = ActivityProfileManagementBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        firestoreRepository = new FirestoreRepository();
-        authRepository = new AuthRepository();
+        localDatabase = new LocalDatabase(this);
 
         setSupportActionBar(binding.toolbar);
         if (getSupportActionBar() != null) {
@@ -52,97 +51,111 @@ public class ProfileManagementActivity extends AppCompatActivity {
                 new ActivityResultContracts.GetContent(),
                 uri -> {
                     if (uri != null) {
-                        uploadProfileImage(uri);
+                        saveProfileImageLocally(uri);
                     }
                 }
         );
 
         binding.btnChangePhoto.setOnClickListener(v -> imagePickerLauncher.launch("image/*"));
 
-        FirebaseUser firebaseUser = authRepository.getCurrentUser();
-        if (firebaseUser != null) {
-            currentUid = firebaseUser.getUid();
-            loadUserData();
+        User user = localDatabase.getUser();
+        if (user != null) {
+            currentUid = user.getUid();
+            loadUserData(user);
             loadVehicleData();
+        } else {
+            currentUid = "local_user";
         }
 
         binding.btnSaveProfile.setOnClickListener(v -> saveProfileData());
         binding.btnSaveCar.setOnClickListener(v -> saveVehicleData());
     }
 
-    private void loadUserData() {
-        firestoreRepository.getUser(currentUid).addOnSuccessListener(user -> {
-            if (user != null) {
-                binding.editFullName.setText(user.getFull_name());
-                binding.editPhone.setText(user.getPhone());
-                binding.editAddress.setText(user.getHome_address());
-                if (user.getProfile_image_url() != null) {
-                    Glide.with(this).load(user.getProfile_image_url()).into(binding.imgProfileManage);
-                }
+    private void loadUserData(User user) {
+        binding.editFullName.setText(user.getFull_name());
+        binding.editPhone.setText(user.getPhone());
+        binding.editAddress.setText(user.getHome_address());
+        if (user.getProfile_image_url() != null) {
+            File imgFile = new File(user.getProfile_image_url());
+            if (imgFile.exists()) {
+                Glide.with(this).load(imgFile).into(binding.imgProfileManage);
             }
-        });
+        }
     }
 
     private void loadVehicleData() {
-        firestoreRepository.getVehiclesForUser(currentUid).addOnSuccessListener(querySnapshot -> {
-            if (!querySnapshot.isEmpty()) {
-                Vehicle vehicle = querySnapshot.toObjects(Vehicle.class).get(0);
-                currentVid = vehicle.getVid();
-                binding.editPlate.setText(vehicle.getPlate());
-                binding.editCarType.setText(vehicle.getMake());
-                binding.editCarModel.setText(vehicle.getModel());
+        List<Vehicle> vehicles = localDatabase.getAllVehicles();
+        for (Vehicle v : vehicles) {
+            if (v.getUid().equals(currentUid)) {
+                currentVid = v.getVid();
+                binding.editPlate.setText(v.getPlate());
+                binding.editCarType.setText(v.getMake());
+                binding.editCarModel.setText(v.getModel());
+                break;
             }
-        });
+        }
     }
 
-    private void uploadProfileImage(Uri imageUri) {
-        Toast.makeText(this, "Uploading...", Toast.LENGTH_SHORT).show();
-        StorageReference storageRef = FirebaseStorage.getInstance().getReference()
-                .child("profile_images/" + currentUid + ".jpg");
+    private void saveProfileImageLocally(Uri uri) {
+        File outputDir = getExternalFilesDir(null);
+        if (outputDir == null) return;
 
-        storageRef.putFile(imageUri).addOnSuccessListener(taskSnapshot -> 
-            storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                String downloadUrl = uri.toString();
-                firestoreRepository.updateUserProfileImage(currentUid, downloadUrl)
-                        .addOnSuccessListener(aVoid -> {
-                            Glide.with(this).load(downloadUrl).into(binding.imgProfileManage);
-                            Toast.makeText(this, "Photo updated!", Toast.LENGTH_SHORT).show();
-                        });
-            })
-        ).addOnFailureListener(e -> Toast.makeText(this, "Upload failed", Toast.LENGTH_SHORT).show());
+        File profileFile = new File(outputDir, "profile_" + currentUid + ".jpg");
+
+        try (InputStream inputStream = getContentResolver().openInputStream(uri);
+             FileOutputStream outputStream = new FileOutputStream(profileFile)) {
+            
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buf)) > 0) {
+                outputStream.write(buf, 0, len);
+            }
+            
+            updateProfileImageUrl(profileFile.getAbsolutePath());
+            
+        } catch (IOException e) {
+            Log.e(TAG, "Error saving profile image", e);
+            Toast.makeText(this, "Failed to update photo", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateProfileImageUrl(String localPath) {
+        User user = localDatabase.getUser();
+        if (user == null) user = new User();
+        user.setProfile_image_url(localPath);
+        localDatabase.saveUser(user);
+        
+        Glide.with(this).load(new File(localPath)).into(binding.imgProfileManage);
+        Toast.makeText(this, "Photo updated locally!", Toast.LENGTH_SHORT).show();
     }
 
     private void saveProfileData() {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("full_name", binding.editFullName.getText().toString().trim());
-        updates.put("phone", binding.editPhone.getText().toString().trim());
-        updates.put("home_address", binding.editAddress.getText().toString().trim());
+        User user = localDatabase.getUser();
+        if (user == null) user = new User();
+        
+        user.setFull_name(binding.editFullName.getText().toString().trim());
+        user.setPhone(binding.editPhone.getText().toString().trim());
+        user.setHome_address(binding.editAddress.getText().toString().trim());
 
-        firestoreRepository.updateUserProfile(currentUid, updates)
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(this, "Update failed", Toast.LENGTH_SHORT).show());
+        localDatabase.saveUser(user);
+        Toast.makeText(this, "Profile updated locally", Toast.LENGTH_SHORT).show();
     }
 
     private void saveVehicleData() {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("plate", binding.editPlate.getText().toString().trim());
-        updates.put("make", binding.editCarType.getText().toString().trim());
-        updates.put("model", binding.editCarModel.getText().toString().trim());
-
-        if (currentVid != null) {
-            firestoreRepository.updateVehicle(currentVid, updates)
-                    .addOnSuccessListener(aVoid -> Toast.makeText(this, "Car details updated", Toast.LENGTH_SHORT).show());
-        } else {
-            Vehicle newVehicle = new Vehicle(null, currentUid, 
-                    binding.editCarType.getText().toString().trim(),
-                    binding.editCarModel.getText().toString().trim(),
-                    0, 
-                    binding.editPlate.getText().toString().trim());
-            firestoreRepository.saveVehicle(newVehicle)
-                    .addOnSuccessListener(aVoid -> {
-                        currentVid = newVehicle.getVid();
-                        Toast.makeText(this, "Car details saved", Toast.LENGTH_SHORT).show();
-                    });
+        if (currentVid == null) {
+            currentVid = UUID.randomUUID().toString();
         }
+
+        Vehicle vehicle = new Vehicle(
+                currentVid,
+                currentUid,
+                binding.editCarType.getText().toString().trim(),
+                binding.editCarModel.getText().toString().trim(),
+                0,
+                binding.editPlate.getText().toString().trim()
+        );
+
+        localDatabase.saveVehicle(vehicle);
+        Toast.makeText(this, "Car details updated locally", Toast.LENGTH_SHORT).show();
     }
 }

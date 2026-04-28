@@ -42,12 +42,6 @@ public class MainActivityTest {
     }
 
     @Test
-    public void testMapButton_opensWorkshopMapActivity() {
-        onView(withId(R.id.btn_map)).perform(click());
-        intended(hasComponent(WorkshopMapActivity.class.getName()));
-    }
-
-    @Test
     public void testSettingsButton_opensSettingsActivity() {
         onView(withId(R.id.btn_settings)).perform(click());
         intended(hasComponent(SettingsActivity.class.getName()));
